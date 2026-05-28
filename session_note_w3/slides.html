@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Math Agent 개발 실전 — LangChain + LangGraph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"/>
+<style>
+:root{--bg:#F2EDE2;--bg2:#EAE3D2;--ink:#1A1816;--soft:#4A453E;--muted:#8B8378;--rule:#2D2A26;--acc:#C53A1B;--accs:#E8C9B6;--olive:#5A6235}
+*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
+body{font-family:"Pretendard Variable",Pretendard,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
+.deck{position:relative;width:100vw;height:100vh;overflow:hidden;z-index:2}
+.slide{position:absolute;inset:0;padding:4vh 6vw 5vh;display:none;flex-direction:column;animation:fi .35s ease}
+.slide.active{display:flex}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.strip{display:flex;align-items:baseline;justify-content:space-between;padding-bottom:1.2vh;border-bottom:1px solid var(--rule);margin-bottom:2.8vh;font-family:"JetBrains Mono",monospace;font-size:clamp(10px,.9vw,12px);letter-spacing:.08em;text-transform:uppercase;color:var(--soft)}
+.strip .sec{color:var(--acc);font-weight:700}.strip .num{font-weight:700;color:var(--ink)}
+.ey{font-family:"JetBrains Mono",monospace;font-size:clamp(10px,.85vw,12px);letter-spacing:.18em;text-transform:uppercase;color:var(--acc);margin-bottom:1vh}
+h1.ttl{font-family:"Instrument Serif",serif;font-weight:400;font-size:clamp(28px,4.8vw,72px);line-height:1.02;letter-spacing:-.02em;margin-bottom:1.2vh}
+h1.ttl em{font-style:italic;color:var(--acc)}
+h2.sub{font-family:"Instrument Serif",serif;font-weight:400;font-size:clamp(20px,2.8vw,44px);line-height:1.1;letter-spacing:-.015em;margin-bottom:2vh}
+h2.sub em{font-style:italic;color:var(--acc)}
+.body{flex:1;display:flex;flex-direction:column;min-height:0;gap:1.8vh}
+.cols{display:grid;gap:2.5vw}.c2{grid-template-columns:1fr 1fr}.c3{grid-template-columns:1fr 1fr 1fr}
+.grow{flex:1;min-height:0}
+.lead{font-size:clamp(14px,1.35vw,20px);line-height:1.5;max-width:38em}
+.note{font-size:clamp(12px,.95vw,15px);color:var(--soft);line-height:1.5}
+.mono{font-family:"JetBrains Mono",monospace;font-size:.92em}.acc{color:var(--acc)}
+ul.cl{list-style:none}
+ul.cl li{padding:.7vh 0;font-size:clamp(13px,1.15vw,17px);line-height:1.5;border-bottom:1px dashed rgba(26,24,22,.15);display:flex;gap:1em}
+ul.cl li:last-child{border-bottom:0}
+ul.cl li .mk{font-family:"JetBrains Mono",monospace;color:var(--acc);font-weight:700;font-size:.82em;flex-shrink:0;padding-top:.3em;min-width:5em}
+.card{background:var(--bg2);border:1px solid var(--rule);padding:1.6vh 1.4vw;display:flex;flex-direction:column;gap:.7vh}
+.card.hi{border-color:var(--acc);border-width:2px}.card.dk{background:var(--ink);border:none;color:var(--bg)}.card.dk .lbl{color:var(--accs)}
+.card .lbl{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--acc);letter-spacing:.12em;text-transform:uppercase}
+.card h3{font-family:"Instrument Serif",serif;font-weight:400;font-size:clamp(16px,1.5vw,22px);line-height:1.15}
+.card p{font-size:clamp(12px,1vw,15px);line-height:1.5;color:var(--soft)}.card.dk p{color:var(--accs)}
+pre{font-family:"JetBrains Mono",monospace;background:var(--ink);color:var(--bg);padding:1.5vh 1.2vw;font-size:clamp(10px,.85vw,13px);line-height:1.5;overflow:auto;border-radius:2px}
+pre.lt{background:var(--bg2);color:var(--ink);border:1px solid var(--rule)}
+pre .k{color:#F5C77E}pre .c{color:#888}pre .s{color:#A8C97F}pre .h{color:#E8907B}
+pre.lt .k{color:var(--acc);font-weight:600}pre.lt .c{color:var(--muted)}pre.lt .s{color:var(--olive)}pre.lt .h{color:var(--acc)}
+.dgm{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}.dgm svg{max-width:100%;max-height:100%}
+table.cmp{width:100%;border-collapse:collapse;font-size:clamp(12px,1vw,15px)}
+table.cmp th,table.cmp td{text-align:left;padding:.9vh .8vw;border-bottom:1px solid rgba(26,24,22,.18);vertical-align:top}
+table.cmp th{font-family:"JetBrains Mono",monospace;font-size:.85em;letter-spacing:.08em;text-transform:uppercase;color:var(--acc);border-bottom:2px solid var(--rule)}
+table.cmp tr td:first-child{font-weight:600;font-family:"JetBrains Mono",monospace;font-size:.9em}
+.df{border-left:3px solid var(--acc);padding:.4vh 0 .4vh 1.4vw;margin-bottom:1.2vh}
+.df .dl{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--acc);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.3vh}
+.df .dt{font-size:clamp(13px,1.15vw,17px);line-height:1.45}.df .dt em{font-style:normal;color:var(--acc);font-weight:600}
+.nav{position:fixed;bottom:1.5vh;right:1.8vw;display:flex;gap:.6em;align-items:center;z-index:10;font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--soft)}
+.nav button{background:transparent;border:1px solid var(--rule);color:var(--ink);width:2.2em;height:2.2em;cursor:pointer;font-size:14px;transition:background .15s}
+.nav button:hover{background:var(--ink);color:var(--bg)}
+.nav .ct{margin-right:.4em}.nav .ct b{color:var(--acc);font-weight:700}
+.hint{position:fixed;bottom:1.5vh;left:1.8vw;font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--muted);letter-spacing:.08em;z-index:10}
+.hint kbd{display:inline-block;padding:.15em .5em;background:var(--bg2);border:1px solid var(--rule);border-radius:2px;font-family:inherit;font-size:9px;margin:0 .2em}
+.ts{justify-content:center;padding:5vh 8vw}.ts .strip{border:none;margin-bottom:0}
+.ts .col{margin-top:3vh;display:flex;gap:4vw;font-family:"JetBrains Mono",monospace;font-size:clamp(10px,.9vw,13px);color:var(--soft)}
+.ts .col div span{display:block;color:var(--acc);font-size:.85em;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.3vh}
+.prg{position:fixed;top:0;left:0;height:3px;background:var(--acc);transition:width .3s;z-index:10}
+.jflow{flex:1;min-height:0;display:flex;align-items:stretch;gap:.6vw;}
+.jcard{flex:1;background:var(--bg2);border:1px solid var(--rule);padding:1.4vh 1.1vw;display:flex;flex-direction:column;gap:.5vh;}
+.jcard.hl{border-color:var(--acc);border-width:2px;}.jcard.dk{background:var(--ink);border:none;}
+.jcard .stg{font-family:"JetBrains Mono",monospace;font-size:9px;color:var(--acc);letter-spacing:.14em;text-transform:uppercase;margin-bottom:.2vh;}
+.jcard h3{font-family:"Instrument Serif",serif;font-weight:400;font-size:clamp(14px,1.35vw,19px);}
+.jcard .tool{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--muted);margin-bottom:.4vh;padding:.2vh .5vw;background:rgba(26,24,22,.06);display:inline-block;}
+.jcard ul{list-style:none;font-size:clamp(11px,.82vw,13px);color:var(--soft);line-height:1.9;margin-top:.2vh;}
+.jcard ul li::before{content:"▸ ";color:var(--acc);}
+.jcard.dk h3{color:var(--bg);}.jcard.dk ul{color:var(--accs);}.jcard.dk .tool{color:var(--accs);background:rgba(255,255,255,.08);}.jcard.dk ul li::before{color:var(--accs);}
+.jarr{display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--acc);font-size:1.5em;width:1.4vw;min-width:14px;}
+@media print{body{overflow:visible}.deck{width:auto;height:auto}.slide{position:relative;display:flex!important;page-break-after:always;height:100vh}.nav,.hint,.prg{display:none}}
+</style>
+</head>
+<body>
+<div class="prg" id="prg"></div>
+<div class="deck" id="deck">
+
+<!-- 00 INTRO -->
+<section class="slide ts active">
+<div class="strip"><span class="sec">INTRO</span><span class="num">01/12</span></div>
+<div class="ey">LangChain + LangGraph + LangServe + Arize Phoenix</div>
+<h1 class="ttl">Math Agent 개발 실전:<br><em>1시간 완성</em></h1>
+<h2 class="sub">계산기 에이전트 구축 · Phoenix 평가 · LangServe 서빙</h2>
+<div class="col">
+  <div><span>모델</span>claude-haiku-4-5-20251001</div>
+  <div><span>Tool</span>arithmetic · calculus · matrix_calc</div>
+  <div><span>평가</span>Code Evaluator + LLM-as-Judge · 20문항</div>
+  <div><span>제출</span>Phoenix experiment URL</div>
+</div>
+</section>
+
+<!-- 01 ECOSYSTEM -->
+<section class="slide">
+<div class="strip"><span class="sec">01 · ECOSYSTEM</span><span class="num">02/12</span></div>
+<div class="body">
+<div class="ey">선택 근거 — 왜 LangGraph인가</div>
+<h2 class="sub">AI Agent 프레임워크 <em>8종 비교</em></h2>
+<div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:1.2vh;">
+<table class="cmp">
+<thead><tr><th>프레임워크</th><th>언어</th><th>GitHub ⭐</th><th>난이도</th><th>핵심 강점</th></tr></thead>
+<tbody>
+<tr style="background:rgba(197,58,27,.05)"><td><b>LangGraph ★</b></td><td>Python/JS</td><td>24.8K</td><td>높음</td><td>상태머신, 순환 루프, 프로덕션 플랫폼 직결</td></tr>
+<tr><td>LangChain</td><td>Python/JS</td><td>122.8K</td><td>중-높</td><td>100+ 통합, RAG, LCEL 파이프</td></tr>
+<tr><td>CrewAI</td><td>Python</td><td>41.8K</td><td>중간</td><td>역할 기반 멀티 에이전트, 협업 특화</td></tr>
+<tr><td>AutoGen (AG2)</td><td>Python</td><td>52.9K</td><td>높음</td><td>코드 생성·실행 에이전트, Azure 통합</td></tr>
+<tr><td>LlamaIndex</td><td>Python</td><td>46.1K</td><td>중간</td><td>RAG 특화, 문서 인덱싱·검색</td></tr>
+<tr><td>Pydantic AI</td><td>Python</td><td>신흥</td><td>중간</td><td>타입 안전성, FastAPI 스타일 DX</td></tr>
+<tr><td>Mastra</td><td>TypeScript</td><td>19K</td><td>중간</td><td>Next.js 네이티브 에이전트</td></tr>
+<tr><td>Semantic Kernel</td><td>C#/Python</td><td>—</td><td>중-높</td><td>Azure · .NET 엔터프라이즈 표준</td></tr>
+</tbody>
+</table>
+<p class="note"><b>LangGraph 선택 이유:</b> 34.5M 월간 다운로드 · Cisco, Uber, LinkedIn, JPMorgan 도입 · 순환 에이전트 루프 + LangGraph Platform으로 프로덕션 직결</p>
+</div>
+</div>
+</section>
+
+<!-- 02 LANGCHAIN -->
+<section class="slide">
+<div class="strip"><span class="sec">02 · LANGCHAIN</span><span class="num">03/12</span></div>
+<div class="body">
+<div class="ey">정의 먼저</div>
+<h1 class="ttl">LangChain — LLM 앱의 <em>LEGO 블록</em></h1>
+<div class="cols c2" style="flex:1;min-height:0;">
+<div>
+  <div class="df"><div class="dl">정의</div><div class="dt">LLM 애플리케이션 개발을 위한 <em>오픈소스 컴포넌트 프레임워크</em>. 모델·프롬프트·파서·도구를 조합해 LLM 앱을 구성</div></div>
+  <div class="df"><div class="dl">비유</div><div class="dt"><em>USB 허브</em>처럼 — 어떤 LLM이든(Claude, GPT, Gemini) 꽂기만 하면 동일한 인터페이스로 동작. 모델을 교체해도 코드 그대로.</div></div>
+  <div style="margin-top:1.2vh;display:flex;flex-direction:column;gap:.5vh;font-size:clamp(12px,1vw,14px);">
+    <div style="display:flex;gap:.8em;padding:.5vh 0;border-bottom:1px dashed rgba(26,24,22,.12)"><span style="font-family:'JetBrains Mono',monospace;color:var(--acc);font-size:.82em;min-width:5.5em;flex-shrink:0;">ChatModel</span>LLM 추상화. ChatAnthropic · ChatOpenAI 동일 인터페이스</div>
+    <div style="display:flex;gap:.8em;padding:.5vh 0;border-bottom:1px dashed rgba(26,24,22,.12)"><span style="font-family:'JetBrains Mono',monospace;color:var(--acc);font-size:.82em;min-width:5.5em;flex-shrink:0;">Prompt</span>재사용 가능한 템플릿. from_messages([(system,...),(human,"{q}")])</div>
+    <div style="display:flex;gap:.8em;padding:.5vh 0;border-bottom:1px dashed rgba(26,24,22,.12)"><span style="font-family:'JetBrains Mono',monospace;color:var(--acc);font-size:.82em;min-width:5.5em;flex-shrink:0;">Parser</span>응답 파싱. StrOutputParser · PydanticOutputParser</div>
+    <div style="display:flex;gap:.8em;padding:.5vh 0;"><span style="font-family:'JetBrains Mono',monospace;color:var(--acc);font-size:.82em;min-width:5.5em;flex-shrink:0;">LCEL</span>| 연산자로 체인 조립. prompt | model | parser</div>
+  </div>
+  <p class="note" style="margin-top:1vh;">⚠️ <b>한계:</b> A→B→C 선형 흐름만 가능. 루프·재시도·조건 분기는 LangGraph 필요.</p>
+</div>
+<pre class="lt"><span class="c"># LCEL 파이프 — 기본 패턴</span>
+<span class="k">from</span> langchain_anthropic <span class="k">import</span> ChatAnthropic
+<span class="k">from</span> langchain_core.prompts <span class="k">import</span> ChatPromptTemplate
+<span class="k">from</span> langchain_core.output_parsers <span class="k">import</span> StrOutputParser
+
+llm = ChatAnthropic(
+    model=<span class="s">"claude-haiku-4-5-20251001"</span>,
+    temperature=0
+)
+
+prompt = ChatPromptTemplate.from_messages([
+    (<span class="s">"system"</span>, <span class="s">"친절한 어시스턴트입니다."</span>),
+    (<span class="s">"human"</span>,  <span class="s">"{question}"</span>),
+])
+
+<span class="h"># | 연산자로 체인 조립 (LCEL)</span>
+chain = prompt | llm | StrOutputParser()
+result = chain.invoke({<span class="s">"question"</span>: <span class="s">"안녕!"</span>})
+
+<span class="c"># 반복이 필요하면? → LangGraph로</span></pre>
+</div>
+</div>
+</section>
+
+<!-- 03 LANGGRAPH WHY -->
+<section class="slide">
+<div class="strip"><span class="sec">03 · LANGGRAPH</span><span class="num">04/12</span></div>
+<div class="body">
+<div class="ey">정의 먼저</div>
+<h2 class="sub">LangGraph가 필요한 <em>3가지 순간</em></h2>
+<div class="cols c2" style="flex:1;min-height:0;">
+<div>
+  <div class="df"><div class="dl">정의</div><div class="dt">LLM 에이전트의 상태(State)와 흐름을 <em>방향성 그래프</em>로 표현하는 오케스트레이션 라이브러리. LangChain 위에서 동작.</div></div>
+  <div class="df"><div class="dl">비유</div><div class="dt"><em>지하철 노선도</em>처럼 — 각 역(Node)에서 상황(State)에 따라 다음 방향을 결정. 환승(루프)도 가능.</div></div>
+  <div class="df"><div class="dl">Situation 1</div><div class="dt">Tool 결과가 틀렸을 때 <em>재시도</em>해야 할 때. 체인은 앞으로만 흐름.</div></div>
+  <div class="df"><div class="dl">Situation 2</div><div class="dt">입력에 따라 <em>다른 경로</em>로 분기해야 할 때. "계산 요청"과 "대화"를 구분.</div></div>
+  <div class="df"><div class="dl">Situation 3</div><div class="dt">몇 번 반복해야 할지 <em>미리 알 수 없을 때</em>. Tool 루프 필요.</div></div>
+</div>
+<div class="dgm">
+<svg viewBox="0 0 380 400" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#C53A1B"/></marker>
+  <marker id="arg" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#8B8378"/></marker>
+</defs>
+<text font-family="JetBrains Mono,monospace" font-size="10" fill="#C53A1B" x="14" y="26" font-weight="700">CHAIN — 선형</text>
+<rect fill="#EAE3D2" stroke="#2D2A26" stroke-width="1.5" x="14" y="36" width="70" height="30"/><text font-family="Instrument Serif,serif" font-size="13" fill="#1A1816" x="49" y="56" text-anchor="middle">입력</text>
+<line stroke="#C53A1B" stroke-width="1.5" x1="84" y1="51" x2="108" y2="51" marker-end="url(#ar)"/>
+<rect fill="#EAE3D2" stroke="#2D2A26" stroke-width="1.5" x="110" y="36" width="70" height="30"/><text font-family="Instrument Serif,serif" font-size="13" fill="#1A1816" x="145" y="56" text-anchor="middle">Node A</text>
+<line stroke="#C53A1B" stroke-width="1.5" x1="180" y1="51" x2="204" y2="51" marker-end="url(#ar)"/>
+<rect fill="#EAE3D2" stroke="#2D2A26" stroke-width="1.5" x="206" y="36" width="70" height="30"/><text font-family="Instrument Serif,serif" font-size="13" fill="#1A1816" x="241" y="56" text-anchor="middle">출력</text>
+<text font-family="JetBrains Mono,monospace" font-size="9" fill="#8B8378" x="14" y="88">재시도 / 분기 / 루프 → 불가</text>
+<line stroke="#2D2A26" stroke-width="0.5" stroke-dasharray="4 3" x1="14" y1="100" x2="366" y2="100"/>
+<text font-family="JetBrains Mono,monospace" font-size="10" fill="#C53A1B" x="14" y="122" font-weight="700">LANGGRAPH — 순환 그래프</text>
+<rect fill="#1A1816" x="14" y="132" width="60" height="28"/><text font-family="JetBrains Mono,monospace" font-size="9" fill="#F2EDE2" x="44" y="150" text-anchor="middle">START</text>
+<line stroke="#C53A1B" stroke-width="1.5" x1="74" y1="146" x2="104" y2="146" marker-end="url(#ar)"/>
+<rect fill="#C53A1B" x="106" y="132" width="80" height="28"/><text font-family="Instrument Serif,serif" font-size="14" fill="#F2EDE2" x="146" y="151" text-anchor="middle">Router</text>
+<line stroke="#C53A1B" stroke-width="1.5" x1="146" y1="160" x2="146" y2="210" marker-end="url(#ar)"/>
+<text font-family="JetBrains Mono,monospace" font-size="9" fill="#C53A1B" x="150" y="190">"chat"</text>
+<rect fill="#EAE3D2" stroke="#2D2A26" stroke-width="1.5" x="102" y="212" width="90" height="28"/><text font-family="Instrument Serif,serif" font-size="13" fill="#1A1816" x="147" y="231" text-anchor="middle">chat_node</text>
+<line stroke="#8B8378" stroke-width="1" stroke-dasharray="3 2" x1="147" y1="240" x2="147" y2="278" marker-end="url(#arg)"/>
+<rect fill="#1A1816" x="120" y="280" width="54" height="22"/><text font-family="JetBrains Mono,monospace" font-size="9" fill="#F2EDE2" x="147" y="295" text-anchor="middle">END</text>
+<line stroke="#C53A1B" stroke-width="1.5" x1="186" y1="146" x2="238" y2="146" marker-end="url(#ar)"/>
+<text font-family="JetBrains Mono,monospace" font-size="9" fill="#C53A1B" x="187" y="141">"calculator"</text>
+<rect fill="#EAE3D2" stroke="#C53A1B" stroke-width="2" x="240" y="132" width="100" height="28"/><text font-family="Instrument Serif,serif" font-size="13" fill="#1A1816" x="290" y="151" text-anchor="middle">calculator</text>
+<line stroke="#C53A1B" stroke-width="1.5" x1="290" y1="160" x2="290" y2="210" marker-end="url(#ar)"/>
+<text font-family="JetBrains Mono,monospace" font-size="9" fill="#C53A1B" x="294" y="192">tool_calls?</text>
+<rect fill="#EAE3D2" stroke="#2D2A26" stroke-width="1.5" x="240" y="212" width="100" height="28"/><text font-family="Instrument Serif,serif" font-size="13" fill="#1A1816" x="290" y="231" text-anchor="middle">tool exec</text>
+<path stroke="#C53A1B" stroke-width="1.5" fill="none" d="M 340 226 Q 364 226 364 146 Q 364 132 340 132" marker-end="url(#ar)"/>
+<text font-family="JetBrains Mono,monospace" font-size="9" fill="#C53A1B" x="342" y="191">loop</text>
+<line stroke="#8B8378" stroke-width="1" stroke-dasharray="3 2" x1="290" y1="240" x2="290" y2="278" marker-end="url(#arg)"/>
+<rect fill="#1A1816" x="263" y="280" width="54" height="22"/><text font-family="JetBrains Mono,monospace" font-size="9" fill="#F2EDE2" x="290" y="295" text-anchor="middle">END</text>
+<rect fill="none" stroke="#8B8378" stroke-width="1" stroke-dasharray="5 3" x="14" y="318" width="352" height="26"/>
+<text font-family="JetBrains Mono,monospace" font-size="9" fill="#8B8378" x="26" y="335">숙제:</text>
+<text font-family="Instrument Serif,serif" font-size="14" fill="#8B8378" x="68" y="335">math_solver_node 추가 → 3-way Router</text>
+</svg>
+</div>
+</div>
+</div>
+</section>
+
+<!-- 04 LANGGRAPH CORE -->
+<section class="slide">
+<div class="strip"><span class="sec">04 · LANGGRAPH</span><span class="num">05/12</span></div>
+<div class="body">
+<div class="ey">State · Node · Edge — 3가지만 기억하면 됩니다</div>
+<h2 class="sub">LangGraph 핵심 <em>구성 요소</em></h2>
+<div class="cols c3" style="flex:1;min-height:0;">
+<div class="card">
+  <span class="lbl">01 · STATE</span>
+  <h3>공유 메모리</h3>
+  <p>모든 노드가 공유하는 TypedDict. <b>add_messages Reducer</b>가 메시지를 자동 누적. 덮어쓰지 않음.</p>
+  <pre style="font-size:clamp(10px,.78vw,12px);margin-top:.5vh;"><span class="k">class</span> AgentState(TypedDict):
+  messages: Annotated[
+    list[BaseMessage],
+    add_messages  <span class="c"># 자동 누적</span>
+  ]
+  mode: str</pre>
+</div>
+<div class="card hi">
+  <span class="lbl">02 · NODE</span>
+  <h3>상태 변환 함수</h3>
+  <p>State를 받아 State 일부를 반환하는 함수. 그래프에 등록되어 엣지에 의해 호출됨.</p>
+  <pre style="font-size:clamp(10px,.78vw,12px);margin-top:.5vh;"><span class="k">def</span> chat_node(
+    state: AgentState
+) -> dict:
+  system = pull_prompt(
+    <span class="s">"chat_system"</span>
+  )
+  resp = llm.invoke(
+    [SystemMessage(system)]
+    + state[<span class="s">"messages"</span>]
+  )
+  <span class="k">return</span> {<span class="s">"messages"</span>: [resp]}</pre>
+</div>
+<div class="card">
+  <span class="lbl">03 · EDGE</span>
+  <h3>연결 규칙</h3>
+  <p><b>일반 엣지:</b> 항상 이동.<br><b>조건 엣지:</b> 함수 반환값으로 분기.</p>
+  <pre style="font-size:clamp(10px,.78vw,12px);margin-top:.5vh;"><span class="c"># 일반 엣지</span>
+builder.add_edge(<span class="s">"A"</span>, END)
+
+<span class="c"># 조건 엣지 (분기)</span>
+builder.add_conditional_edges(
+  START,
+  mode_router,
+  {
+    <span class="s">"chat"</span>:    <span class="s">"chat_node"</span>,
+    <span class="s">"calc"</span>:    <span class="s">"calc_node"</span>
+  }
+)
+graph = builder.compile()</pre>
+</div>
+</div>
+</div>
+</section>
+
+<!-- 05 TOOLS -->
+<section class="slide">
+<div class="strip"><span class="sec">05 · TOOLS</span><span class="num">06/12</span></div>
+<div class="body">
+<div class="ey">정의 먼저</div>
+<h1 class="ttl">Tool Calling — <em>LLM의 손과 발</em></h1>
+<div class="cols c2" style="flex:1;min-height:0;">
+<div>
+  <div class="df"><div class="dl">정의</div><div class="dt">LLM이 호출할 수 있는 <em>외부 함수</em>. LLM은 어떤 함수를 어떤 인자로 호출할지만 결정하고, <em>실제 실행은 코드</em>가 담당.</div></div>
+  <div class="df"><div class="dl">비유</div><div class="dt"><em>지휘자(LLM)와 연주자(코드)</em> — 지휘자가 "바이올린 연주해" 신호를 주면 연주자가 실제 소리를 냄. 지휘자는 직접 악기를 연주하지 않음.</div></div>
+  <div class="df"><div class="dl">ReAct 루프</div><div class="dt"><em>Thought</em>(어떤 도구?) → <em>Action</em>(tool_calls 생성) → <em>Observation</em>(ToolMessage 수신) → 반복</div></div>
+  <div class="card" style="margin-top:1.2vh;">
+    <span class="lbl">오늘 구현하는 Tool 3종</span>
+    <ul class="cl" style="margin-top:.3vh">
+      <li><span class="mk">arithmetic</span><span>사칙연산 · 거듭제곱 · 나머지 (ast 안전 eval)</span></li>
+      <li><span class="mk">calculus</span><span>미분(diff) · 적분(integrate) — sympy 기반</span></li>
+      <li><span class="mk">matrix</span><span>행렬식(det) · 역행렬(inv) · 행렬곱(matmul) — numpy</span></li>
+    </ul>
+  </div>
+</div>
+<pre class="lt"><span class="k">from</span> langchain_core.tools <span class="k">import</span> tool
+<span class="k">import</span> sympy <span class="k">as</span> sp
+
+<span class="h">@tool</span>
+<span class="k">def</span> calculus(
+    expression: str,
+    variable: str = <span class="s">"x"</span>,
+    operation: str = <span class="s">"diff"</span>,
+) -> str:
+    <span class="s">"""미분/적분 계산. 'diff'|'integrate'"""</span>
+    var = sp.Symbol(variable)
+    expr = sp.sympify(expression)
+    <span class="k">if</span> operation == <span class="s">"diff"</span>:
+        <span class="k">return</span> str(sp.diff(expr, var))
+    <span class="k">return</span> str(sp.integrate(expr, var))
+
+<span class="c"># LLM에 Tool 바인딩</span>
+llm_with_tools = llm.bind_tools(
+    [arithmetic, calculus, matrix_calc]
+)
+
+<span class="c"># LangGraph ToolNode</span>
+<span class="k">from</span> langgraph.prebuilt <span class="k">import</span> ToolNode
+tool_executor = ToolNode(tools)
+
+<span class="c"># LLM → tool_calls 신호
+# ToolNode → 실제 함수 실행</span></pre>
+</div>
+</div>
+</section>
+
+<!-- 06 PHOENIX -->
+<section class="slide">
+<div class="strip"><span class="sec">06 · PHOENIX</span><span class="num">07/12</span></div>
+<div class="body">
+<div class="ey">정의 먼저</div>
+<h2 class="sub">Arize Phoenix — <em>LLM 블랙박스</em>를 열다</h2>
+<div class="cols c2" style="flex:1;min-height:0;">
+<div>
+  <div class="df"><div class="dl">정의</div><div class="dt">LLM 애플리케이션의 실행을 <em>추적·평가·개선</em>하는 오픈소스 관찰가능성(Observability) 플랫폼. OpenTelemetry 기반.</div></div>
+  <div class="df"><div class="dl">비유</div><div class="dt"><em>비행기 블랙박스</em>처럼 — 에이전트의 모든 결정, 도구 호출, 응답 과정을 저장해 사고 발생 시 역추적 가능.</div></div>
+  <div class="df"><div class="dl">실행 방법</div><div class="dt">별도 터미널에서 <em>phoenix serve</em> 명령어 실행. 서버가 뜨면 Python에서 연결.</div></div>
+  <pre style="margin-top:.8vh;font-size:clamp(10px,.82vw,13px);"><span class="c"># 1. Terminal에서 서버 실행</span>
+$ <span class="h">phoenix serve</span>
+<span class="c"># → http://localhost:6006 접속</span>
+
+<span class="c"># 2. Python에서 연결</span>
+<span class="k">from</span> phoenix.otel <span class="k">import</span> register
+<span class="k">from</span> openinference.instrumentation.langchain <span class="k">import</span> \
+    LangChainInstrumentor
+
+tracer = register(
+    project_name=<span class="s">"math-agent"</span>,
+    endpoint=<span class="s">"http://localhost:6006/v1/traces"</span>
+)
+LangChainInstrumentor().<span class="h">instrument</span>(
+    tracer_provider=tracer
+)</pre>
+</div>
+<div style="display:flex;flex-direction:column;gap:1.2vh;">
+  <div class="card">
+    <span class="lbl">01 · TRACING</span>
+    <h3>자동 Span 기록</h3>
+    <p>LangChain 호출 자동 기록. 노드마다 1 Span. Latency · 토큰 수 · 비용 한눈에. 별도 코드 불필요.</p>
+  </div>
+  <div class="card">
+    <span class="lbl">02 · PROMPT HUB</span>
+    <h3>코드 밖 버전 관리</h3>
+    <p>프롬프트를 UI에서 수정·등록. 코드 배포 없이 v1→v2 교체. graph.py의 pull_prompt()가 항상 최신 버전 로딩.</p>
+  </div>
+  <div class="card hi">
+    <span class="lbl">03 · EVALUATION ★</span>
+    <h3>자동 품질 측정</h3>
+    <p>Dataset(20문항)으로 배치 평가. Code Evaluator + LLM-as-Judge. 점수를 Phoenix에 기록해 버전별 비교 가능.</p>
+  </div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- 07 EVALUATION -->
+<section class="slide">
+<div class="strip"><span class="sec">07 · EVALUATION</span><span class="num">08/12</span></div>
+<div class="body">
+<div class="ey">Phoenix Evaluation — Math Agent 정확도 측정</div>
+<h2 class="sub">Evaluator <em>3가지 유형</em></h2>
+<div class="cols c3" style="flex:1;min-height:0;">
+<div class="card">
+  <span class="lbl">01 · CODE EVALUATOR</span>
+  <h3>수치 정확도</h3>
+  <p>기댓값과 수치 비교. 숫자 ±0.01 오차 허용. 심볼릭 결과는 sympy 동치 확인.</p>
+  <pre style="font-size:clamp(10px,.78vw,12px);margin-top:.5vh;"><span class="k">def</span> code_eval(row):
+  pred = row[<span class="s">"predicted"</span>]
+  exp  = row[<span class="s">"expected"</span>]
+  <span class="k">try</span>:
+    <span class="k">if</span> abs(float(pred)
+      - float(exp)) &lt; 0.01:
+      <span class="k">return</span> {<span class="s">"score"</span>: 1}
+  <span class="k">except</span>: <span class="k">pass</span>
+  diff = sp.simplify(
+    sp.sympify(pred) -
+    sp.sympify(exp))
+  <span class="k">return</span> {<span class="s">"score"</span>: diff==0}</pre>
+</div>
+<div class="card hi">
+  <span class="lbl">02 · LLM-AS-JUDGE</span>
+  <h3>풀이 적절성</h3>
+  <p>Claude Haiku가 풀이 과정의 논리성·도구 사용 여부를 correct/incorrect로 채점.</p>
+  <pre style="font-size:clamp(10px,.78vw,12px);margin-top:.5vh;"><span class="c">JUDGE_PROMPT = """
+채점 기준:
+1. 적절한 도구 사용?
+2. 논리적 과정?
+3. 최종 답 포함?
+correct/incorrect 만 답하기
+"""</span>
+
+judge = (
+  JUDGE_TEMPLATE
+  | ChatAnthropic(
+      model=<span class="s">"claude-haiku-..."</span>,
+      temperature=0
+    )
+)</pre>
+</div>
+<div class="card">
+  <span class="lbl">03 · 개선 사이클</span>
+  <h3>Prompt v1 → v2</h3>
+  <p>실패 케이스 분석 → Prompt Hub v2 등록 → 재평가. Experiments 탭에서 버전 비교.</p>
+  <ul class="cl" style="margin-top:.8vh;">
+    <li><span class="mk">Step 1</span><span>실패 Trace 드릴다운 → 원인 파악</span></li>
+    <li><span class="mk">Step 2</span><span>Phoenix UI에서 Prompt v2 등록</span></li>
+    <li><span class="mk">Step 3</span><span>코드 수정 없이 배치 재실행</span></li>
+    <li><span class="mk">Step 4</span><span>Experiments 탭 v1 vs v2 비교</span></li>
+  </ul>
+</div>
+</div>
+</div>
+</section>
+
+<!-- 08 LANGSERVE -->
+<section class="slide">
+<div class="strip"><span class="sec">08 · LANGSERVE</span><span class="num">09/12</span></div>
+<div class="body">
+<div class="ey">정의 먼저</div>
+<h1 class="ttl">LangServe — 에이전트를 <em>API로 서빙</em></h1>
+<div class="cols c2" style="flex:1;min-height:0;">
+<div>
+  <div class="df"><div class="dl">정의</div><div class="dt">LangChain/LangGraph 에이전트를 <em>FastAPI 기반 REST API</em>로 즉시 배포하는 서빙 라이브러리. add_routes() 한 줄로 6개 엔드포인트 자동 생성.</div></div>
+  <div class="df"><div class="dl">비유</div><div class="dt">이름 그대로 <em>Serve</em> — 주방(에이전트)에서 만든 요리를 손님(클라이언트)에게 서빙하는 웨이터. 웨이터 없이는 손님이 직접 주방에 들어와야 함.</div></div>
+  <pre class="lt" style="margin-top:.8vh;"><span class="c"># server.py — 핵심은 add_routes 한 줄</span>
+<span class="k">from</span> fastapi <span class="k">import</span> FastAPI
+<span class="k">from</span> langserve <span class="k">import</span> add_routes
+<span class="k">from</span> graph <span class="k">import</span> graph
+
+app = FastAPI()
+add_routes(app, graph, path=<span class="s">"/agent"</span>)
+
+<span class="c"># uvicorn server:app --reload --port 8000</span></pre>
+  <div class="card dk" style="margin-top:1vh;">
+    <span class="lbl">⚠️ 참고</span>
+    <p>LangServe = 수업·로컬 데모용. 유지보수 모드.<br><b style="color:var(--accs)">프로덕션</b> → LangGraph Platform (langgraph-cli)</p>
+  </div>
+</div>
+<div>
+  <h3 style="font-family:'Instrument Serif',serif;font-weight:400;font-size:clamp(15px,1.4vw,20px);margin-bottom:1.2vh;">자동 생성 엔드포인트 — 6개</h3>
+  <ul class="cl">
+    <li><span class="mk mono">/invoke</span><span><b>단일 요청 동기 처리.</b> 요청 1개 → 응답 1개. 가장 기본적인 API.</span></li>
+    <li><span class="mk mono">/batch</span><span><b>다중 요청 병렬 처리.</b> 여러 입력 한 번에 전송, 병렬 실행.</span></li>
+    <li><span class="mk mono">/stream</span><span><b>SSE 토큰 스트리밍.</b> 생성 즉시 토큰 단위로 전달.</span></li>
+    <li><span class="mk mono">/stream_log</span><span><b>중간 단계 스트리밍.</b> 각 노드의 중간 결과까지 실시간.</span></li>
+    <li><span class="mk mono">/docs</span><span><b>Swagger 자동 문서.</b> 입출력 스키마 자동 생성.</span></li>
+    <li><span class="mk mono">/playground</span><span style="color:var(--muted);">[보조] 브라우저 테스트 UI. 별도 프론트 없이 빠른 테스트.</span></li>
+  </ul>
+</div>
+</div>
+</div>
+</section>
+
+<!-- 09 MATH AGENT JOURNEY (NEW) -->
+<section class="slide">
+<div class="strip"><span class="sec">09 · MATH AGENT</span><span class="num">10/12</span></div>
+<div class="body">
+<div class="ey">오늘 우리가 만드는 것 — 5단계 전체 여정</div>
+<h2 class="sub">Math Agent — <em>개발부터 서빙까지</em></h2>
+<div class="jflow">
+  <div class="jcard">
+    <div class="stg">01 · BUILD</div>
+    <h3>구현</h3>
+    <div class="tool">LangGraph</div>
+    <ul>
+      <li>AgentState 설계</li>
+      <li>Mode Router</li>
+      <li>Tool 3종 구현</li>
+      <li>graph.py 작성</li>
+      <li>lab.ipynb 실습</li>
+    </ul>
+  </div>
+  <div class="jarr">›</div>
+  <div class="jcard">
+    <div class="stg">02 · OBSERVE</div>
+    <h3>관찰</h3>
+    <div class="tool">Phoenix Tracing</div>
+    <ul>
+      <li>자동 Span 기록</li>
+      <li>Latency / Token</li>
+      <li>Tool 호출 추적</li>
+      <li>실패 원인 파악</li>
+      <li>Trace 드릴다운</li>
+    </ul>
+  </div>
+  <div class="jarr">›</div>
+  <div class="jcard hl">
+    <div class="stg">03 · EVALUATE</div>
+    <h3>평가</h3>
+    <div class="tool">Phoenix Evaluation</div>
+    <ul>
+      <li>Dataset 20문항</li>
+      <li>Code Evaluator</li>
+      <li>LLM-as-Judge</li>
+      <li>점수 집계</li>
+      <li>Experiments 탭</li>
+    </ul>
+  </div>
+  <div class="jarr">›</div>
+  <div class="jcard hl">
+    <div class="stg">04 · IMPROVE</div>
+    <h3>개선</h3>
+    <div class="tool">Phoenix Prompt Hub</div>
+    <ul>
+      <li>실패 케이스 분석</li>
+      <li>Prompt v2 등록</li>
+      <li>코드 배포 없이</li>
+      <li>재실행 비교</li>
+      <li>v1 vs v2 점수</li>
+    </ul>
+  </div>
+  <div class="jarr">›</div>
+  <div class="jcard dk">
+    <div class="stg">05 · SERVE</div>
+    <h3>서빙</h3>
+    <div class="tool">LangServe</div>
+    <ul>
+      <li>/invoke · /batch</li>
+      <li>/stream</li>
+      <li>/stream_log</li>
+      <li>/docs (Swagger)</li>
+      <li>/playground</li>
+    </ul>
+  </div>
+</div>
+<p class="note" style="margin-top:1vh;"><b>숙제 제출:</b> math_solver_node 구현 후 Phoenix experiment URL 공유 — 강사가 URL만으로 Trace + Eval 점수 확인</p>
+</div>
+</section>
+
+<!-- 10 ARCHITECTURE -->
+<section class="slide">
+<div class="strip"><span class="sec">10 · ARCHITECTURE</span><span class="num">11/12</span></div>
+<div class="body">
+<div class="ey">오늘 만드는 것 — 전체 조감도</div>
+<h2 class="sub">전체 <em>아키텍처</em></h2>
+<div class="dgm">
+<svg viewBox="0 0 1060 370" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="a1" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#C53A1B"/></marker>
+  <marker id="a2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#8B8378"/></marker>
+</defs>
+<rect fill="#EAE3D2" stroke="#C53A1B" stroke-width="1.5" x="18" y="18" width="220" height="54"/>
+<text font-family="JetBrains Mono,monospace" font-size="9" fill="#C53A1B" x="30" y="37" font-weight="700">PHOENIX PROMPT HUB</text>
+<text font-family="Instrument Serif,serif" font-size="14" fill="#1A1816" x="30" y="58">chat_system · calculator_system</text>
+<text font-family="JetBrains Mono,monospace" font-size="8" fill="#8B8378" x="30" y="70">pull_prompt() ↓</text>
+<line stroke="#C53A1B" stroke-width="1.5" x1="128" y1="72" x2="258" y2="118" marker-end="url(#a1)"/>
+<rect fill="#C53A1B" x="260" y="118" width="100" height="36"/>
+<text font-family="JetBrains Mono,monospace" font-size="9" fill="#F2EDE2" x="310" y="133" text-anchor="middle">ROUTER</text>
+<text font-family="Instrument Serif,serif" font-size="15" fill="#F2EDE2" x="310" y="148" text-anchor="middle">Haiku · LLM</text>
+<line stroke="#C53A1B" stroke-width="1.5" x1="260" y1="136" x2="186" y2="186" marker-end="url(#a1)"/>
+<text font-family="JetBrains Mono,monospace" font-size="9" fill="#C53A1B" x="190" y="164">"chat"</text>
+<rect fill="#EAE3D2" stroke="#2D2A26" stroke-width="1.5" x="118" y="188" width="124" height="34"/>
+<text font-family="Instrument Serif,serif" font-size="15" fill="#1A1816" x="180" y="210" text-anchor="middle">chat_node</text>
+<line stroke="#8B8378" stroke-width="1" stroke-dasharray="3 2" x1="180" y1="222" x2="180" y2="290" marker-end="url(#a2)"/>
+<rect fill="#1A1816" x="153" y="292" width="54" height="22"/><text font-family="JetBrains Mono,monospace" font-size="9" fill="#F2EDE2" x="180" y="307" text-anchor="middle">END</text>
+<line stroke="#C53A1B" stroke-width="1.5" x1="360" y1="136" x2="452" y2="186" marker-end="url(#a1)"/>
+<text font-family="JetBrains Mono,monospace" font-size="9" fill="#C53A1B" x="368" y="164">"calculator"</text>
+<rect fill="#EAE3D2" stroke="#C53A1B" stroke-width="2" x="398" y="188" width="152" height="34"/>
+<text font-family="Instrument Serif,serif" font-size="15" fill="#1A1816" x="474" y="210" text-anchor="middle">calculator_node</text>
+<line stroke="#C53A1B" stroke-width="1.5" x1="474" y1="222" x2="474" y2="262" marker-end="url(#a1)"/>
+<text font-family="JetBrains Mono,monospace" font-size="8" fill="#C53A1B" x="478" y="248">tool_calls?</text>
+<rect fill="#EAE3D2" stroke="#2D2A26" stroke-width="1.5" x="398" y="264" width="152" height="34"/>
+<text font-family="Instrument Serif,serif" font-size="14" fill="#1A1816" x="474" y="282" text-anchor="middle">tool_executor</text>
+<text font-family="JetBrains Mono,monospace" font-size="8" fill="#8B8378" x="474" y="296" text-anchor="middle">arithmetic · calculus · matrix</text>
+<path stroke="#C53A1B" stroke-width="1.5" fill="none" d="M 550 281 Q 580 281 580 205 Q 580 188 550 188" marker-end="url(#a1)"/>
+<text font-family="JetBrains Mono,monospace" font-size="8" fill="#C53A1B" x="582" y="240">loop</text>
+<line stroke="#8B8378" stroke-width="1" stroke-dasharray="3 2" x1="474" y1="298" x2="474" y2="334" marker-end="url(#a2)"/>
+<rect fill="#1A1816" x="447" y="336" width="54" height="22"/><text font-family="JetBrains Mono,monospace" font-size="9" fill="#F2EDE2" x="474" y="351" text-anchor="middle">END</text>
+<rect fill="#1A1816" x="636" y="18" width="190" height="130" rx="2"/>
+<text font-family="JetBrains Mono,monospace" font-size="9" fill="#C53A1B" x="652" y="38" font-weight="700">PHOENIX TRACING</text>
+<text font-family="JetBrains Mono,monospace" font-size="8" fill="#E8C9B6" x="652" y="55">phoenix serve → :6006</text>
+<text font-family="Instrument Serif,serif" font-size="13" fill="#F2EDE2" x="652" y="78">▸ mode_router span</text>
+<text font-family="Instrument Serif,serif" font-size="13" fill="#F2EDE2" x="652" y="96">▸ calculator_node span</text>
+<text font-family="Instrument Serif,serif" font-size="13" fill="#F2EDE2" x="652" y="114">▸ tool_executor span</text>
+<text font-family="Instrument Serif,serif" font-size="13" fill="#F2EDE2" x="652" y="132">▸ latency · tokens · cost</text>
+<line stroke="#8B8378" stroke-width="1" stroke-dasharray="3 2" x1="580" y1="210" x2="636" y2="90" marker-end="url(#a2)"/>
+<rect fill="#EAE3D2" stroke="#C53A1B" stroke-width="1.5" x="636" y="168" width="190" height="110" rx="2"/>
+<text font-family="JetBrains Mono,monospace" font-size="9" fill="#C53A1B" x="652" y="188" font-weight="700">PHOENIX EVALUATION</text>
+<text font-family="Instrument Serif,serif" font-size="13" fill="#1A1816" x="652" y="210">Dataset (20문항)</text>
+<text font-family="Instrument Serif,serif" font-size="13" fill="#1A1816" x="652" y="230">↓ Code + LLM Judge</text>
+<text font-family="Instrument Serif,serif" font-size="13" fill="#1A1816" x="652" y="250">↓ Prompt 개선 사이클</text>
+<text font-family="Instrument Serif,serif" font-size="13" fill="#C53A1B" x="652" y="270">v1 vs v2 비교</text>
+<rect fill="#EAE3D2" stroke="#2D2A26" stroke-width="1.5" x="856" y="168" width="186" height="86"/>
+<text font-family="JetBrains Mono,monospace" font-size="9" fill="#C53A1B" x="872" y="188" font-weight="700">LANGSERVE</text>
+<text font-family="Instrument Serif,serif" font-size="13" fill="#1A1816" x="872" y="210">/invoke · /batch · /stream</text>
+<text font-family="Instrument Serif,serif" font-size="13" fill="#1A1816" x="872" y="230">/stream_log · /docs</text>
+<text font-family="JetBrains Mono,monospace" font-size="8" fill="#8B8378" x="872" y="250">/playground [보조]</text>
+<line stroke="#C53A1B" stroke-width="1.5" x1="826" y1="211" x2="856" y2="211" marker-end="url(#a1)"/>
+<text font-family="JetBrains Mono,monospace" font-size="8" fill="#C53A1B" x="828" y="207">graph</text>
+<rect fill="none" stroke="#8B8378" stroke-width="1" stroke-dasharray="5 3" x="636" y="296" width="406" height="34"/>
+<text font-family="JetBrains Mono,monospace" font-size="9" fill="#8B8378" x="652" y="313">숙제:</text>
+<text font-family="Instrument Serif,serif" font-size="14" fill="#8B8378" x="696" y="319">math_solver_node 구현 → Phoenix experiment URL 제출</text>
+</svg>
+</div>
+</div>
+</section>
+
+<!-- 11 SETUP -->
+<section class="slide">
+<div class="strip"><span class="sec">11 · SETUP</span><span class="num">12/12</span></div>
+<div class="body">
+<div class="ey">수업 시작 전 확인</div>
+<h2 class="sub">준비 <em>체크리스트</em></h2>
+<div class="cols c2" style="flex:1;min-height:0;">
+<div>
+  <ul class="cl">
+    <li><span class="mk">Python</span><span>Python 3.11+ 확인 — <span class="mono">python --version</span></span></li>
+    <li><span class="mk">API Key</span><span><span class="mono">ANTHROPIC_API_KEY</span> 환경변수 설정</span></li>
+    <li><span class="mk">패키지</span><span><span class="mono">pre_setup.ipynb</span> §0 실행 완료</span></li>
+    <li><span class="mk">Phoenix</span><span>터미널에서 <span class="mono acc">phoenix serve</span> 실행 → <span class="mono">:6006</span></span></li>
+    <li><span class="mk">Prompts</span><span>Prompt Hub 3종 등록 — Prompts 탭 확인</span></li>
+    <li><span class="mk">Dataset</span><span>calculator_eval 20문항 업로드 — Datasets 탭</span></li>
+  </ul>
+  <div class="card dk" style="margin-top:1.5vh;">
+    <span class="lbl">의존성 — langchain-core 1.x.x 기준</span>
+    <pre style="font-size:clamp(10px,.78vw,12px);margin-top:.4vh;background:transparent;padding:0;color:var(--accs);">pip install \
+  "langchain-core&gt;=1.0,&lt;2.0" \
+  "langchain-anthropic&gt;=0.3" \
+  "langgraph&gt;=0.2" \
+  "langserve[all]&gt;=0.3" \
+  "arize-phoenix[evals]&gt;=4.0" \
+  openinference-instrumentation-langchain \
+  sympy numpy pandas</pre>
+  </div>
+</div>
+<div>
+  <div class="card hi">
+    <span class="lbl">배포 파일 6개</span>
+    <h3>패키지 구성</h3>
+    <pre class="lt" style="font-size:clamp(11px,.9vw,13px);margin-top:.5vh;">langchain_class/
+├── <span class="h">pre_setup.ipynb</span>        ← 사전 설정
+├── <span class="h">graph.py</span>               ← 핵심 모듈
+├── <span class="h">server.py</span>              ← LangServe
+├── <span class="h">lab.ipynb</span>              ← 수업 메인
+├── <span class="h">slides.html</span>            ← 이 슬라이드
+└── <span class="h">homework_starter.ipynb</span></pre>
+  </div>
+  <div class="card" style="margin-top:1.5vh;">
+    <span class="lbl">기본 모델</span>
+    <h3>claude-haiku-4-5-20251001</h3>
+    <p>빠르고 저렴. Mode Router · calculator_node · chat_node 모두 Haiku 사용. 숙제도 동일.</p>
+  </div>
+</div>
+</div>
+</div>
+</section>
+
+</div><!-- /deck -->
+<div class="hint"><kbd>&#x2190;</kbd><kbd>&#x2192;</kbd> 이동 &middot; <kbd>F</kbd> 전체화면 &middot; <kbd>P</kbd> 인쇄</div>
+<div class="nav"><span class="ct"><b id="cur">01</b> / <span id="tot">12</span></span>
+<button id="prev">&#x2039;</button><button id="next">&#x203a;</button></div>
+<script>
+(function(){var s=Array.from(document.querySelectorAll('.slide'));var c=document.getElementById('cur'),t=document.getElementById('tot'),p=document.getElementById('prg');var i=0;t.textContent=String(s.length).padStart(2,'0');function go(n){i=Math.max(0,Math.min(s.length-1,n));s.forEach(function(e,k){e.classList.toggle('active',k===i)});c.textContent=String(i+1).padStart(2,'0');p.style.width=((i+1)/s.length*100)+'%';var nm=s[i].querySelector('.strip .num');if(nm)nm.textContent=String(i+1).padStart(2,'0')+'/'+String(s.length).padStart(2,'0');}
+document.getElementById('prev').onclick=function(){go(i-1)};document.getElementById('next').onclick=function(){go(i+1)};
+document.addEventListener('keydown',function(e){if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();go(i+1)}else if(e.key==='ArrowLeft'){e.preventDefault();go(i-1)}else if(e.key==='Home'){go(0)}else if(e.key==='End'){go(s.length-1)}else if(e.key.toLowerCase()==='f'){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}else if(e.key.toLowerCase()==='p')window.print();});go(0);})();
+</script></body></html>
